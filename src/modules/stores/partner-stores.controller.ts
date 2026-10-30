@@ -54,7 +54,7 @@ export class PartnerStoresController {
   @Get('stats')
   @ApiOperation({ summary: 'Claims, redemptions and top offers' })
   getStats(@CurrentStore() store: StoreAccess): Promise<StoreStatsDto> {
-    return this.stats.get(store.storeId);
+    return this.stats.get(store);
   }
 
   @Patch()

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { ClaimStatus, OfferStatus } from '../../generated/prisma/enums.js';
+import type { StoreAccess } from './access/store-access.js';
 import type { PeriodStatsDto, StoreStatsDto } from './dto/store-stats.dto.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,15 +13,22 @@ const LIBYA_OFFSET_MS = 2 * 60 * 60 * 1000;
 export class StoreStatsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async get(storeId: string): Promise<StoreStatsDto> {
+  async get(store: StoreAccess): Promise<StoreStatsDto> {
     const now = new Date();
-    const offerOfStore = { offer: { storeId } };
+    const offers: Prisma.OfferWhereInput = {
+      storeId: store.storeId,
+      // Staff limited to a branch count only offers valid at their branch.
+      branches: store.branchId
+        ? { some: { branchId: store.branchId } }
+        : undefined,
+    };
+    const offerOfStore = { offer: offers };
 
     const [liveOffers, activeReservations, today, last30Days, top] =
       await Promise.all([
         this.prisma.offer.count({
           where: {
-            storeId,
+            ...offers,
             status: OfferStatus.ACTIVE,
             startsAt: { lte: now },
             endsAt: { gt: now },
@@ -32,8 +41,8 @@ export class StoreStatsService {
             expiresAt: { gt: now },
           },
         }),
-        this.periodStats(storeId, startOfLibyaDay(now)),
-        this.periodStats(storeId, new Date(now.getTime() - 30 * DAY_MS)),
+        this.periodStats(offers, startOfLibyaDay(now)),
+        this.periodStats(offers, new Date(now.getTime() - 30 * DAY_MS)),
         this.prisma.claim.groupBy({
           by: ['offerId'],
           where: {
@@ -47,7 +56,7 @@ export class StoreStatsService {
         }),
       ]);
 
-    const offers = await this.prisma.offer.findMany({
+    const topRows = await this.prisma.offer.findMany({
       where: { id: { in: top.map((row) => row.offerId) } },
       select: {
         id: true,
@@ -56,7 +65,7 @@ export class StoreStatsService {
         _count: { select: { claims: true } },
       },
     });
-    const byId = new Map(offers.map((offer) => [offer.id, offer]));
+    const byId = new Map(topRows.map((offer) => [offer.id, offer]));
 
     return {
       liveOffers,
@@ -80,10 +89,10 @@ export class StoreStatsService {
   }
 
   private async periodStats(
-    storeId: string,
+    offers: Prisma.OfferWhereInput,
     since: Date,
   ): Promise<PeriodStatsDto> {
-    const where = { offer: { storeId }, createdAt: { gte: since } };
+    const where = { offer: offers, createdAt: { gte: since } };
     const [claims, redeemed, expired] = await Promise.all([
       this.prisma.claim.count({ where }),
       this.prisma.claim.count({

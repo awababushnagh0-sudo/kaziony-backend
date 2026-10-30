@@ -643,5 +643,20 @@ describe('Partner API (e2e)', () => {
       expect(res.body.liveOffers).toBeGreaterThanOrEqual(1);
       expect(res.body.topOffers[0]).toMatchObject({ offerId, redeemed: 2 });
     });
+
+    it('counts only the staff member’s branch for staff', async () => {
+      await as('owner', api().post(url('/offers')))
+        .send({
+          productId,
+          offerPrice: '5',
+          type: 'UNLIMITED',
+          endsAt: new Date(Date.now() + HOUR),
+          branchIds: [branchB],
+        })
+        .expect(201);
+      const owner = await as('owner', api().get(url('/stats'))).expect(200);
+      const staff = await as('staff', api().get(url('/stats'))).expect(200);
+      expect(staff.body.liveOffers).toBeLessThan(owner.body.liveOffers);
+    });
   });
 });
