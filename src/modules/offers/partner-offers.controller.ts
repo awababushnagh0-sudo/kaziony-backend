@@ -75,7 +75,14 @@ export class PartnerOffersController {
 
   @Patch(':offerId')
   @StoreRoles(StoreMemberRole.OWNER)
-  @ApiOperation({ summary: 'Edit the title, description or end time (owner)' })
+  @ApiOperation({
+    summary: 'Edit the title, description or end time (owner)',
+    description:
+      'Price, pieces and limits never change once posted. While customers ' +
+      'hold a reservation, the title and description are locked too ' +
+      '(409 `OfferHasReservations`; see `canEditDetails`). Shortening the ' +
+      "end time doesn't shorten reservations already made.",
+  })
   update(
     @CurrentStore() store: StoreAccess,
     @Param('offerId', ParseUUIDPipe) offerId: string,

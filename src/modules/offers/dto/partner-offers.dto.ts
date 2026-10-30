@@ -149,6 +149,12 @@ export class PartnerOfferDto {
   branchIds: string[];
   viewCount: number;
   claims: ClaimCountsDto;
+  /**
+   * False while customers hold a reservation: the title and description stay
+   * as they reserved them (editing them returns 409 `OfferHasReservations`).
+   * The end time can always change.
+   */
+  canEditDetails: boolean;
   createdAt: Date;
 }
 

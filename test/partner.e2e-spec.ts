@@ -435,6 +435,55 @@ describe('Partner API (e2e)', () => {
         .expect(400);
     });
 
+    it('keeps the title and description while customers hold a reservation', async () => {
+      const created = await as('owner', api().post(url('/offers')))
+        .send(offer({ title: 'كنافة', description: 'طازجة' }))
+        .expect(201);
+      const id = created.body.id;
+      expect(created.body.canEditDetails).toBe(true);
+
+      const held = await prisma.claim.create({
+        data: {
+          offerId: id,
+          userId: customerId,
+          code: generateClaimCode(),
+          expiresAt: new Date(Date.now() + HOUR),
+        },
+      });
+      const shown = await as('owner', api().get(url(`/offers/${id}`))).expect(
+        200,
+      );
+      expect(shown.body.canEditDetails).toBe(false);
+
+      const renamed = await as('owner', api().patch(url(`/offers/${id}`)))
+        .send({ title: 'شي ثاني' })
+        .expect(409);
+      expect(renamed.body.error).toBe('OfferHasReservations');
+      await as('owner', api().patch(url(`/offers/${id}`)))
+        .send({ description: 'وصف جديد' })
+        .expect(409);
+
+      // The app resends the same text with a new end time: that's fine
+      const endsAt = new Date(Date.now() + 30 * HOUR);
+      const extended = await as('owner', api().patch(url(`/offers/${id}`)))
+        .send({ title: 'كنافة', description: 'طازجة', endsAt })
+        .expect(200);
+      expect(new Date(extended.body.endsAt).getTime()).toBe(endsAt.getTime());
+
+      // Once they've picked up, the text can change again
+      await prisma.claim.update({
+        where: { id: held.id },
+        data: { status: ClaimStatus.REDEEMED, redeemedAt: new Date() },
+      });
+      const fixed = await as('owner', api().patch(url(`/offers/${id}`)))
+        .send({ title: 'كنافة بالقشطة' })
+        .expect(200);
+      expect(fixed.body).toMatchObject({
+        title: 'كنافة بالقشطة',
+        canEditDetails: true,
+      });
+    });
+
     it('blocks changes to offers an admin took down', async () => {
       const created = await as('owner', api().post(url('/offers')))
         .send(offer())

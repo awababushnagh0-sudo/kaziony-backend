@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -60,17 +61,26 @@ export class PartnerOffersService {
       }),
       this.prisma.offer.count({ where }),
     ]);
-    const counts = await this.claimCounts(offers.map((offer) => offer.id));
+    const ids = offers.map((offer) => offer.id);
+    const [counts, held] = await Promise.all([
+      this.claimCounts(ids),
+      this.heldOfferIds(ids),
+    ]);
     return {
-      items: offers.map((offer) => this.toDto(offer, counts.get(offer.id))),
+      items: offers.map((offer) =>
+        this.toDto(offer, counts.get(offer.id), held.has(offer.id)),
+      ),
       meta: pageMeta(query, total),
     };
   }
 
   async get(storeId: string, offerId: string): Promise<PartnerOfferDto> {
     const offer = await this.findInStore(storeId, offerId);
-    const counts = await this.claimCounts([offer.id]);
-    return this.toDto(offer, counts.get(offer.id));
+    const [counts, held] = await Promise.all([
+      this.claimCounts([offer.id]),
+      this.heldOfferIds([offer.id]),
+    ]);
+    return this.toDto(offer, counts.get(offer.id), held.has(offer.id));
   }
 
   async create(
@@ -132,7 +142,7 @@ export class PartnerOffersService {
       },
       include: offerInclude,
     });
-    return this.toDto(offer, undefined);
+    return this.toDto(offer, undefined, false);
   }
 
   async update(
@@ -144,10 +154,29 @@ export class PartnerOffersService {
     assertEditable(offer.status);
     if (dto.endsAt) assertValidEnd(offer.startsAt, dto.endsAt);
 
-    await this.prisma.offer.update({
-      where: { id: offerId },
+    // Customers on their way reserved this title and description, so they
+    // can't change under them. The apps resend unchanged text, which is fine.
+    const changesDetails =
+      (dto.title !== undefined && dto.title !== offer.title) ||
+      (dto.description !== undefined &&
+        (dto.description || null) !== (offer.description || null));
+    const { count } = await this.prisma.offer.updateMany({
+      where: {
+        id: offerId,
+        claims: changesDetails
+          ? { none: activeReservationWhere(new Date()) }
+          : undefined,
+      },
       data: dto,
     });
+    if (count === 0) {
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'OfferHasReservations',
+        message:
+          'Customers have reserved this offer, so its title and description stay as they are until they pick up. You can still change the end time.',
+      });
+    }
     return this.get(storeId, offerId);
   }
 
@@ -238,6 +267,19 @@ export class PartnerOffersService {
     return branches.map((branch) => branch.id);
   }
 
+  /** Offers that customers are holding a reservation for right now. */
+  private async heldOfferIds(offerIds: string[]): Promise<Set<string>> {
+    if (offerIds.length === 0) return new Set();
+    const rows = await this.prisma.claim.groupBy({
+      by: ['offerId'],
+      where: {
+        offerId: { in: offerIds },
+        ...activeReservationWhere(new Date()),
+      },
+    });
+    return new Set(rows.map((row) => row.offerId));
+  }
+
   private async claimCounts(
     offerIds: string[],
   ): Promise<Map<string, ClaimCountsDto>> {
@@ -259,6 +301,7 @@ export class PartnerOffersService {
   private toDto(
     offer: OfferWithRelations,
     counts: ClaimCountsDto | undefined,
+    held: boolean,
   ): PartnerOfferDto {
     return {
       id: offer.id,
@@ -282,6 +325,7 @@ export class PartnerOffersService {
       branchIds: offer.branches.map((branch) => branch.branchId),
       viewCount: offer.viewCount,
       claims: counts ?? emptyCounts(),
+      canEditDetails: !held,
       createdAt: offer.createdAt,
     };
   }
@@ -314,6 +358,10 @@ function assertValidEnd(startsAt: Date, endsAt: Date): void {
   if (endsAt.getTime() - startsAt.getTime() > MAX_DURATION_MS) {
     throw new BadRequestException('Offers can last at most 30 days');
   }
+}
+
+function activeReservationWhere(now: Date) {
+  return { status: ClaimStatus.RESERVED, expiresAt: { gt: now } };
 }
 
 function emptyCounts(): ClaimCountsDto {
