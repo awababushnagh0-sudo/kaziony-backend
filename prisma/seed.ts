@@ -8,6 +8,7 @@ import {
   StoreMemberRole,
   UserRole,
 } from '../src/generated/prisma/client.js';
+import { DEMO } from './demo-ids.js';
 
 // Safe to run many times: everything is upserted by a fixed id or slug.
 
@@ -21,16 +22,6 @@ const categories = [
   { slug: 'cafe', nameAr: 'مقهى', nameEn: 'Café', sortOrder: 2 },
   { slug: 'bakery', nameAr: 'مخبز', nameEn: 'Bakery', sortOrder: 3 },
 ];
-
-const DEMO = {
-  storeId: '01990000-0000-7000-8000-000000000001',
-  branchAndalusId: '01990000-0000-7000-8000-000000000011',
-  branchBenAshourId: '01990000-0000-7000-8000-000000000012',
-  caramelCakeId: '01990000-0000-7000-8000-000000000021',
-  baklavaId: '01990000-0000-7000-8000-000000000022',
-  caramelOfferId: '01990000-0000-7000-8000-000000000031',
-  baklavaOfferId: '01990000-0000-7000-8000-000000000032',
-};
 
 // Development logins. Only created when DEV_AUTH_ENABLED=true.
 const DEV_USERS = [
@@ -49,7 +40,7 @@ const DEV_USERS = [
   {
     role: UserRole.MERCHANT,
     name: 'Demo Owner',
-    phone: '+218910000001',
+    phone: DEMO.ownerPhone,
     password: 'Merchant123!',
     membership: { role: StoreMemberRole.OWNER, branchId: null },
   },
