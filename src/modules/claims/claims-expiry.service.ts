@@ -65,6 +65,7 @@ export class ClaimsExpiryService {
         id: true,
         userId: true,
         offerId: true,
+        quantity: true,
         offer: { select: { type: true } },
       },
       take: BATCH_SIZE,
@@ -89,7 +90,7 @@ export class ClaimsExpiryService {
 
         await tx.offer.update({
           where: { id: claim.offerId },
-          data: { remainingQuantity: { increment: 1 } },
+          data: { remainingQuantity: { increment: claim.quantity } },
         });
         const user = await tx.user.update({
           where: { id: claim.userId },

@@ -53,6 +53,10 @@ export class ClaimOfferDto {
 export class PartnerClaimDto {
   id: string;
   code: string;
+  /** Pieces to hand over. */
+  quantity: number;
+  /** What to collect in cash: offerPrice × quantity, LD with 3 decimals. */
+  totalPrice: string;
   @ApiProperty({ enum: ClaimStatus, enumName: 'ClaimStatus' })
   status: ClaimStatus;
   customerName: string | null;

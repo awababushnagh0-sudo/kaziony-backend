@@ -47,7 +47,11 @@ export class ClaimsService {
     private readonly storage: StorageService,
   ) {}
 
-  async claim(userId: string, offerId: string): Promise<CustomerClaimDto> {
+  async claim(
+    userId: string,
+    offerId: string,
+    quantity: number,
+  ): Promise<CustomerClaimDto> {
     const claimId = await this.prisma.$transaction(async (tx) => {
       // One claim at a time per customer, so double taps can't get around
       // the limits below. Other customers aren't blocked.
@@ -83,17 +87,26 @@ export class ClaimsService {
         );
       }
 
-      const used = await tx.claim.count({
-        where: {
-          offerId,
-          userId,
-          status: { in: [ClaimStatus.RESERVED, ClaimStatus.REDEEMED] },
-        },
-      });
-      if (used >= offer.maxPerUser) {
-        throw new ConflictException(
-          "You've already claimed this offer the maximum number of times",
-        );
+      if (offer.maxPerUser !== null) {
+        const taken = await tx.claim.aggregate({
+          where: {
+            offerId,
+            userId,
+            status: { in: [ClaimStatus.RESERVED, ClaimStatus.REDEEMED] },
+          },
+          _sum: { quantity: true },
+        });
+        const left = offer.maxPerUser - (taken._sum.quantity ?? 0);
+        if (left <= 0) {
+          throw new ConflictException(
+            "You've already taken the most this offer allows",
+          );
+        }
+        if (quantity > left) {
+          throw new ConflictException(
+            `You can take ${left} more of this offer`,
+          );
+        }
       }
 
       let expiresAt = offer.endsAt;
@@ -112,12 +125,19 @@ export class ClaimsService {
           );
         }
 
-        // Atomic: only succeeds while there's at least one piece left.
+        // Atomic: only succeeds while there are enough pieces left.
         const { count } = await tx.offer.updateMany({
-          where: { id: offerId, remainingQuantity: { gt: 0 } },
-          data: { remainingQuantity: { decrement: 1 } },
+          where: { id: offerId, remainingQuantity: { gte: quantity } },
+          data: { remainingQuantity: { decrement: quantity } },
         });
-        if (count === 0) throw new ConflictException('Sold out');
+        if (count === 0) {
+          const { remainingQuantity } = await tx.offer.findUniqueOrThrow({
+            where: { id: offerId },
+          });
+          throw new ConflictException(
+            remainingQuantity ? `Only ${remainingQuantity} left` : 'Sold out',
+          );
+        }
 
         const windowEnd = new Date(
           now.getTime() + offer.claimWindowMinutes * 60_000,
@@ -130,6 +150,7 @@ export class ClaimsService {
           offerId,
           userId,
           code: await uniqueCode(tx),
+          quantity,
           expiresAt,
         },
       });
@@ -174,7 +195,7 @@ export class ClaimsService {
     return this.toDto(claim);
   }
 
-  /** Gives the piece back. No strike, since the store is told in time. */
+  /** Gives the pieces back. No strike, since the store is told in time. */
   async cancel(userId: string, claimId: string): Promise<CustomerClaimDto> {
     const claim = await this.prisma.claim.findFirst({
       where: { id: claimId, userId },
@@ -200,7 +221,7 @@ export class ClaimsService {
       if (claim.offer.type === OfferType.LIMITED) {
         await tx.offer.update({
           where: { id: claim.offerId },
-          data: { remainingQuantity: { increment: 1 } },
+          data: { remainingQuantity: { increment: claim.quantity } },
         });
       }
     });
@@ -238,6 +259,8 @@ export class ClaimsService {
     return {
       id: claim.id,
       code: claim.code,
+      quantity: claim.quantity,
+      totalPrice: formatPrice(claim.offer.offerPrice.mul(claim.quantity)),
       status:
         claim.status === ClaimStatus.RESERVED && !isActive
           ? ClaimStatus.EXPIRED

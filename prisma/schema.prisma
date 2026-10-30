@@ -271,7 +271,8 @@ model Offer {
   // Only for LIMITED offers.
   totalQuantity      Int?        @map("total_quantity")
   remainingQuantity  Int?        @map("remaining_quantity")
-  maxPerUser         Int         @default(1) @map("max_per_user")
+  // Pieces one customer can take in all; null for no limit.
+  maxPerUser         Int?        @map("max_per_user")
   // How long a claim stays reserved before it expires.
   claimWindowMinutes Int         @default(60) @map("claim_window_minutes")
   startsAt           DateTime    @default(now()) @map("starts_at")
@@ -315,6 +316,8 @@ model Claim {
   userId           String      @map("user_id") @db.Uuid
   // Random, unguessable code shown as the QR code.
   code             String      @unique
+  // Pieces taken with this one code.
+  quantity         Int         @default(1)
   status           ClaimStatus @default(RESERVED)
   expiresAt        DateTime    @map("expires_at")
   redeemedAt       DateTime?   @map("redeemed_at")

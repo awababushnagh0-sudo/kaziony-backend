@@ -122,6 +122,8 @@ export class PublicOfferDto {
   state: OfferState;
   /** Pieces left (LIMITED offers only). */
   remainingQuantity: number | null;
+  /** Pieces one customer can take in all; null for no limit. */
+  maxPerUser: number | null;
   /** How long a reservation is held after claiming. */
   claimWindowMinutes: number;
   startsAt: Date;

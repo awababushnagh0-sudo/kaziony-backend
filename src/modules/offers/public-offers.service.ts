@@ -231,6 +231,7 @@ export class PublicOffersService {
       state: offerState(offer),
       remainingQuantity:
         offer.type === OfferType.LIMITED ? offer.remainingQuantity : null,
+      maxPerUser: offer.maxPerUser,
       claimWindowMinutes: offer.claimWindowMinutes,
       startsAt: offer.startsAt,
       endsAt: offer.endsAt,

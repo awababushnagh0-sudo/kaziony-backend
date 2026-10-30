@@ -46,11 +46,17 @@ describe('Customer API (e2e)', () => {
   }
 
   /** Claims an offer as a test customer and checks the status code. */
-  async function claim(name: string, offerId: string, status?: number) {
+  async function claim(
+    name: string,
+    offerId: string,
+    status?: number,
+    body: Record<string, unknown> = {},
+  ) {
     const { token } = await customer(name);
     const res = await api()
       .post(`/api/v1/offers/${offerId}/claim`)
-      .set('Authorization', `Bearer ${token}`);
+      .set('Authorization', `Bearer ${token}`)
+      .send(body);
     if (status) expect(res.status, JSON.stringify(res.body)).toBe(status);
     return res;
   }
@@ -63,7 +69,7 @@ describe('Customer API (e2e)', () => {
       offerPrice: string;
       startsAt: Date;
       endsAt: Date;
-      maxPerUser: number;
+      maxPerUser: number | null;
       branchIds: string[];
       title: string;
     }> = {},
@@ -94,7 +100,8 @@ describe('Customer API (e2e)', () => {
         type,
         totalQuantity: type === OfferType.LIMITED ? quantity : null,
         remainingQuantity: type === OfferType.LIMITED ? quantity : null,
-        maxPerUser: overrides.maxPerUser ?? 1,
+        maxPerUser:
+          overrides.maxPerUser === undefined ? 1 : overrides.maxPerUser,
         claimWindowMinutes: 60,
         startsAt: overrides.startsAt ?? new Date(Date.now() - 60_000),
         endsAt: overrides.endsAt ?? new Date(Date.now() + 24 * HOUR),
@@ -326,6 +333,8 @@ describe('Customer API (e2e)', () => {
       const res = await claim('alice', o.id, 201);
       expect(res.body).toMatchObject({
         status: 'RESERVED',
+        quantity: 1,
+        totalPrice: '5.000',
         canCancel: true,
         offer: { id: o.id },
       });
@@ -370,6 +379,62 @@ describe('Customer API (e2e)', () => {
       expect(await prisma.claim.count({ where: { offerId: o.id } })).toBe(3);
     });
 
+    it('takes several pieces with one code, all of them when there is no limit', async () => {
+      const o = await offer({ quantity: 5, maxPerUser: null });
+      const detail = await api().get(`/api/v1/offers/${o.id}`).expect(200);
+      expect(detail.body.maxPerUser).toBeNull();
+
+      const first = await claim('bulk1', o.id, 201, { quantity: 3 });
+      expect(first.body).toMatchObject({ quantity: 3, totalPrice: '15.000' });
+
+      const tooMany = await claim('bulk2', o.id, 409, { quantity: 3 });
+      expect(tooMany.body.message).toBe('Only 2 left');
+
+      await claim('bulk2', o.id, 201, { quantity: 2 });
+      const after = await prisma.offer.findUniqueOrThrow({
+        where: { id: o.id },
+      });
+      expect(after.remainingQuantity).toBe(0);
+      expect((await claim('bulk3', o.id, 409)).body.message).toBe('Sold out');
+    });
+
+    it('never sells more pieces than there are, even when everyone taps at once', async () => {
+      const o = await offer({ quantity: 5, maxPerUser: null });
+      const names = ['q1', 'q2', 'q3', 'q4'];
+      await Promise.all(names.map((n) => customer(n)));
+      const results = await Promise.all(
+        names.map(async (n) =>
+          claim(n, o.id, undefined, { quantity: 2 }).then((r) => r.status),
+        ),
+      );
+
+      expect(results.filter((s) => s === 201)).toHaveLength(2);
+      const after = await prisma.offer.findUniqueOrThrow({
+        where: { id: o.id },
+      });
+      expect(after.remainingQuantity).toBe(1);
+    });
+
+    it('counts pieces toward maxPerUser', async () => {
+      const o = await offer({ quantity: 10, maxPerUser: 3 });
+      const first = await claim('capped', o.id, 201, { quantity: 2 });
+      await prisma.claim.update({
+        where: { id: first.body.id },
+        data: { status: ClaimStatus.REDEEMED },
+      });
+      const over = await claim('capped', o.id, 409, { quantity: 2 });
+      expect(over.body.message).toBe('You can take 1 more of this offer');
+      await claim('capped', o.id, 201, { quantity: 1 });
+    });
+
+    it.each([[0], [101], [1.5], ['2']])(
+      'rejects a quantity of %j',
+      async (quantity) => {
+        const o = await offer();
+        await claim('picky', o.id, 400, { quantity });
+      },
+    );
+
     it('gives a double tap only one claim', async () => {
       const o = await offer({ quantity: 10, maxPerUser: 5 });
       await customer('tapper');
@@ -409,7 +474,9 @@ describe('Customer API (e2e)', () => {
         data: { status: ClaimStatus.REDEEMED },
       });
       const third = await claim('bob', o.id, 409);
-      expect(third.body.message).toMatch(/maximum number of times/);
+      expect(third.body.message).toBe(
+        "You've already taken the most this offer allows",
+      );
     });
 
     it('explains why an offer cannot be claimed', async () => {
@@ -433,9 +500,9 @@ describe('Customer API (e2e)', () => {
   });
 
   describe('my claims', () => {
-    it('lists active claims and cancels one, giving the piece back', async () => {
-      const o = await offer({ quantity: 5 });
-      const myClaim = (await claim('dave', o.id, 201)).body;
+    it('lists active claims and cancels one, giving the pieces back', async () => {
+      const o = await offer({ quantity: 5, maxPerUser: null });
+      const myClaim = (await claim('dave', o.id, 201, { quantity: 2 })).body;
       const { token } = await customer('dave');
 
       const list = await api()
@@ -479,13 +546,13 @@ describe('Customer API (e2e)', () => {
 
   describe('expiry job', () => {
     it('expires claims, gives pieces back and bans after 3 no-shows', async () => {
-      const o = await offer({ quantity: 5 });
+      const o = await offer({ quantity: 5, maxPerUser: null });
       const { id: userId } = await customer('noshow');
       await prisma.user.update({
         where: { id: userId },
         data: { noShowCount: 2 },
       });
-      const myClaim = (await claim('noshow', o.id, 201)).body;
+      const myClaim = (await claim('noshow', o.id, 201, { quantity: 2 })).body;
       await prisma.claim.update({
         where: { id: myClaim.id },
         data: { expiresAt: new Date(Date.now() - 1000) },

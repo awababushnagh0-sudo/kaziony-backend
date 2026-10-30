@@ -246,11 +246,11 @@ export class PartnerOffersService {
     const rows = await this.prisma.claim.groupBy({
       by: ['offerId', 'status'],
       where: { offerId: { in: offerIds } },
-      _count: { _all: true },
+      _sum: { quantity: true },
     });
     for (const row of rows) {
       const counts = result.get(row.offerId) ?? emptyCounts();
-      counts[statusKey(row.status)] = row._count._all;
+      counts[statusKey(row.status)] = row._sum.quantity ?? 0;
       result.set(row.offerId, counts);
     }
     return result;

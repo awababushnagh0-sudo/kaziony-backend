@@ -158,6 +158,8 @@ export class PartnerClaimsService {
     return {
       id: claim.id,
       code: claim.code,
+      quantity: claim.quantity,
+      totalPrice: formatPrice(claim.offer.offerPrice.mul(claim.quantity)),
       status: claim.status,
       customerName: claim.user.name,
       offer: {

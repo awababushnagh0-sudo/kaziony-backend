@@ -367,7 +367,7 @@ describe('Partner API (e2e)', () => {
         discountPercent: 50,
         state: 'LIVE',
         remainingQuantity: 20,
-        maxPerUser: 1,
+        maxPerUser: null,
         claimWindowMinutes: 60,
         claims: { reserved: 0, redeemed: 0, expired: 0, cancelled: 0 },
       });
@@ -467,20 +467,27 @@ describe('Partner API (e2e)', () => {
 
   describe('claims at the counter', () => {
     async function claim(
-      overrides: { offerId?: string; expiresAt?: Date } = {},
+      overrides: { offerId?: string; expiresAt?: Date; quantity?: number } = {},
     ) {
       return prisma.claim.create({
         data: {
           offerId: overrides.offerId ?? offerId,
           userId: customerId,
           code: generateClaimCode(),
+          quantity: overrides.quantity,
           expiresAt: overrides.expiresAt ?? new Date(Date.now() + HOUR),
         },
       });
     }
 
     it('lists reserved claims and looks up codes in any format', async () => {
-      const c = await claim();
+      const reserved = async () =>
+        (await as('owner', api().get(url(`/offers/${offerId}`))).expect(200))
+          .body.claims.reserved as number;
+      const before = await reserved();
+      const c = await claim({ quantity: 3 });
+      expect(await reserved()).toBe(before + 3);
+
       const list = await as('staff', api().get(url('/claims'))).expect(200);
       expect(list.body.items.map((i: { id: string }) => i.id)).toContain(c.id);
 
@@ -491,6 +498,8 @@ describe('Partner API (e2e)', () => {
       ).expect(200);
       expect(res.body).toMatchObject({
         code: c.code,
+        quantity: 3,
+        totalPrice: '12.000',
         customerName,
         canRedeem: true,
         problem: null,

@@ -46,7 +46,7 @@ export class CreateOfferDto {
   @Max(10_000)
   totalQuantity?: number;
 
-  /** How many times one customer can claim it. */
+  /** Pieces one customer can take in all. Leave out for no limit. */
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -111,6 +111,7 @@ export class ListPartnerOffersQueryDto extends PaginationQueryDto {
   status?: OfferStatus;
 }
 
+/** Pieces in claims of each status (a claim can take several). */
 export class ClaimCountsDto {
   reserved: number;
   redeemed: number;
@@ -140,7 +141,8 @@ export class PartnerOfferDto {
   state: OfferState;
   totalQuantity: number | null;
   remainingQuantity: number | null;
-  maxPerUser: number;
+  /** Pieces one customer can take in all; null for no limit. */
+  maxPerUser: number | null;
   claimWindowMinutes: number;
   startsAt: Date;
   endsAt: Date;

@@ -104,6 +104,7 @@ Decisions:
 
 Decisions:
 - **Limited offers** hold a piece for the claim window (or until the offer ends, if sooner). **Unlimited offers** give a code valid until the offer ends; they don't count toward the 3-reservation limit and don't give strikes.
+- **A claim can take several pieces with one code** (`quantity`, default 1), so one customer can buy a whole tray. The limit per customer (`maxPerUser`) counts pieces and is **optional: no limit by default**. A no-show on a big claim holds those pieces only until the claim window ends, and still counts as one strike.
 - Browsing filters and sorts live offers in memory (fine for ~100 stores, logs a warning at 1000 live offers).
 - Ended or sold-out offers still open from a shared link and show their state; removed offers and disabled stores return 404.
 

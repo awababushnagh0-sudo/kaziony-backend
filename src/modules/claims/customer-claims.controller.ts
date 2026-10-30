@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -16,6 +17,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 import { ClaimsService, MAX_ACTIVE_RESERVATIONS } from './claims.service.js';
 import {
+  CreateClaimDto,
   CustomerClaimDto,
   CustomerClaimListDto,
   ListMyClaimsQueryDto,
@@ -33,7 +35,9 @@ export class CustomerClaimsController {
   @ApiOperation({
     summary: 'Claim an offer',
     description:
-      'LIMITED offers reserve one piece until `expiresAt` (the claim window). ' +
+      'Takes `quantity` pieces (default 1) with one code, within the ' +
+      "offer's `maxPerUser`. LIMITED offers hold them until `expiresAt` " +
+      '(the claim window). ' +
       `A customer can hold ${MAX_ACTIVE_RESERVATIONS} reservations at once; ` +
       'every 3rd missed pickup blocks claiming for 7 days. ' +
       'UNLIMITED offers just give a code valid until the offer ends.',
@@ -41,8 +45,9 @@ export class CustomerClaimsController {
   claim(
     @Param('offerId', ParseUUIDPipe) offerId: string,
     @CurrentUser() user: AuthUser,
+    @Body() dto: CreateClaimDto,
   ): Promise<CustomerClaimDto> {
-    return this.claims.claim(user.id, offerId);
+    return this.claims.claim(user.id, offerId, dto.quantity ?? 1);
   }
 
   @Get('me/claims')
@@ -67,7 +72,7 @@ export class CustomerClaimsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Cancel a reservation I can't pick up",
-    description: 'Gives the piece back. Cancelling in time is not a no-show.',
+    description: 'Gives the pieces back. Cancelling in time is not a no-show.',
   })
   cancel(
     @CurrentUser() user: AuthUser,
