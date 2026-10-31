@@ -26,13 +26,20 @@ describe('App (e2e)', () => {
       });
   });
 
-  it('GET /api/v1/app-config returns minimum app versions', () => {
+  it('GET /api/v1/app-config returns minimum app versions and support', () => {
     return request(app.getHttpServer())
       .get('/api/v1/app-config')
       .expect(200)
       .expect((res) => {
         expect(res.body.partner.minVersion).toMatch(/^\d+\.\d+\.\d+$/);
         expect(res.body.customer.minVersion).toMatch(/^\d+\.\d+\.\d+$/);
+        expect(res.body.support).toMatchObject({
+          phone: expect.any(String),
+          whatsapp: expect.stringMatching(/^\d+$/),
+          email: expect.stringContaining('@'),
+          hoursAr: expect.any(String),
+          hoursEn: expect.any(String),
+        });
       });
   });
 

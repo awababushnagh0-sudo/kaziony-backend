@@ -13,7 +13,8 @@ export class AppConfigController {
 
   @Get()
   @ApiOperation({
-    summary: 'Settings the apps read on startup (minimum versions)',
+    summary:
+      'Settings the apps read on startup (minimum versions, how to reach us)',
   })
   getAppConfig(): AppConfigDto {
     return {
@@ -29,6 +30,13 @@ export class AppConfigController {
       },
       admin: {
         minVersion: this.config.get('ADMIN_APP_MIN_VERSION', { infer: true }),
+      },
+      support: {
+        phone: this.config.get('SUPPORT_PHONE', { infer: true }),
+        whatsapp: this.config.get('SUPPORT_WHATSAPP', { infer: true }),
+        email: this.config.get('SUPPORT_EMAIL', { infer: true }),
+        hoursAr: this.config.get('SUPPORT_HOURS_AR', { infer: true }),
+        hoursEn: this.config.get('SUPPORT_HOURS_EN', { infer: true }),
       },
     };
   }

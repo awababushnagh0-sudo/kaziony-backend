@@ -50,6 +50,20 @@ export const envSchema = z
     CUSTOMER_APP_MIN_VERSION: semver.default('1.0.0'),
     ADMIN_APP_MIN_VERSION: semver.default('1.0.0'),
 
+    // How stores and customers reach our team, shown in the apps. The
+    // defaults are placeholders until the real ones are set.
+    SUPPORT_PHONE: z.string().min(1).default('+218910000000'),
+    // International, digits only, as wa.me links want it.
+    SUPPORT_WHATSAPP: z
+      .string()
+      .regex(/^\d{8,15}$/, 'digits only, with the country code')
+      .default('218910000000'),
+    SUPPORT_EMAIL: z.email().default('support@kaziony.ly'),
+    SUPPORT_HOURS_AR: z
+      .string()
+      .default('السبت إلى الخميس، 9 صباحًا إلى 5 مساءً'),
+    SUPPORT_HOURS_EN: z.string().default('Saturday to Thursday, 9 am to 5 pm'),
+
     // Enables POST /auth/dev/customer and the test logins in the seed.
     // Off unless explicitly turned on; refused in production.
     DEV_AUTH_ENABLED: booleanString.default(false),
