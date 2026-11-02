@@ -54,7 +54,8 @@ Users on a temporary password (new merchants, reset passwords, new admins) get `
 | Prefix | Who | Notes |
 |---|---|---|
 | `/api/v1/auth` | Everyone | Login, tokens, profile |
-| `/api/v1/categories`, `/api/v1/offers`, `/api/v1/stores/:id` | Public | Browsing; send `lat`/`lng` for distances |
+| `/api/v1/categories`, `/api/v1/offers`, `/api/v1/stores/:id` | Public | Browsing. `GET /offers` needs `lat`/`lng` (`error: "LocationRequired"`) unless it's for one `storeId`, inside a service area (`error: "OutsideServiceArea"`), and never reaches past the browse radius |
+| `/api/v1/app-config` | Public | Minimum app versions, support contact, browse radius and service areas |
 | `/api/v1/offers/:id/claim`, `/api/v1/me/...`, `/api/v1/stores/:id/follow` | Customers | Claims, my claims, follows |
 | `/api/v1/admin/...` | Admins | `@Roles(UserRole.ADMIN)` |
 | `/api/v1/partner/stores/:storeId/...` | Store owners and staff | `StoreAccessGuard`: members of that store only; `@StoreRoles(OWNER)` for owner-only routes; `@CurrentStore()` gives the membership |

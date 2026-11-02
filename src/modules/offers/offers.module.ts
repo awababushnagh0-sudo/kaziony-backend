@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SettingsModule } from '../settings/settings.module.js';
 import { AdminOffersController } from './admin-offers.controller.js';
 import { AdminOffersService } from './admin-offers.service.js';
 import { PartnerOffersController } from './partner-offers.controller.js';
@@ -7,6 +8,7 @@ import { PublicOffersController } from './public-offers.controller.js';
 import { PublicOffersService } from './public-offers.service.js';
 
 @Module({
+  imports: [SettingsModule],
   controllers: [
     PublicOffersController,
     PartnerOffersController,

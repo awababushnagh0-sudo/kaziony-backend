@@ -30,6 +30,7 @@ describe('Admin API (e2e)', () => {
   const staffPhone = `09${String(staffRun).padStart(8, '1')}`;
   const customerName = `E2E Admin Customer ${run}`;
   const editorEmail = `e2e-editor-${run}@offers.local`;
+  const settingsEditorEmail = `e2e-settings-editor-${run}@offers.local`;
   let editorId: string;
   const categorySlug = `e2e-cat-${run}`;
   const hiddenSlug = `e2e-hidden-${run}`;
@@ -83,6 +84,7 @@ describe('Admin API (e2e)', () => {
         OR: [
           { email: admin.email },
           { email: editorEmail },
+          { email: settingsEditorEmail },
           { phone: ownerPhone.e164 },
           {
             phone: { startsWith: `+2189${String(staffRun).padStart(8, '1')}` },
@@ -105,6 +107,131 @@ describe('Admin API (e2e)', () => {
     it('rejects customers', async () => {
       await api()
         .get('/api/v1/admin/stores')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .expect(403);
+    });
+  });
+
+  describe('settings', () => {
+    let editorToken: string;
+    const asEditor = (req: request.Test) =>
+      req.set('Authorization', `Bearer ${editorToken}`);
+
+    beforeAll(async () => {
+      const editorPassword = 'Editor-Pass-1';
+      await prisma.user.create({
+        data: {
+          role: UserRole.EDITOR,
+          email: settingsEditorEmail,
+          passwordHash: await app.get(PasswordService).hash(editorPassword),
+        },
+      });
+      editorToken = (
+        await api()
+          .post('/api/v1/auth/login')
+          .send({ identifier: settingsEditorEmail, password: editorPassword })
+          .expect(200)
+      ).body.accessToken as string;
+    });
+
+    it('admins change the browse radius; editors only read it', async () => {
+      const before = await asAdmin(api().get('/api/v1/admin/settings')).expect(
+        200,
+      );
+      const original = before.body.browseRadiusKm as number;
+      await asEditor(api().get('/api/v1/admin/settings')).expect(200);
+      await asEditor(api().patch('/api/v1/admin/settings'))
+        .send({ browseRadiusKm: 30 })
+        .expect(403);
+      await api()
+        .get('/api/v1/admin/settings')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .expect(403);
+
+      for (const browseRadiusKm of [0, 101, 2.5, '30']) {
+        await asAdmin(api().patch('/api/v1/admin/settings'))
+          .send({ browseRadiusKm })
+          .expect(400);
+      }
+
+      try {
+        // Under the 45 km the customer tests rely on, which run alongside.
+        const res = await asAdmin(api().patch('/api/v1/admin/settings'))
+          .send({ browseRadiusKm: 30 })
+          .expect(200);
+        expect(res.body).toEqual({ browseRadiusKm: 30 });
+        const config = await api().get('/api/v1/app-config').expect(200);
+        expect(config.body.browse.radiusKm).toBe(30);
+      } finally {
+        await asAdmin(api().patch('/api/v1/admin/settings'))
+          .send({ browseRadiusKm: original })
+          .expect(200);
+      }
+    });
+
+    it('admins manage service areas; customers browse only inside them', async () => {
+      // Sabha: far from where the other tests browse, which run alongside.
+      const sabha = { lat: 27.03, lng: 14.43 };
+      const browse = () => api().get('/api/v1/offers').query(sabha);
+      await browse().expect(400);
+
+      const area = {
+        nameAr: `سبها ${run}`,
+        nameEn: `Sabha ${run}`,
+        latitude: sabha.lat,
+        longitude: sabha.lng,
+        radiusKm: 20,
+      };
+      await asEditor(api().post('/api/v1/admin/service-areas'))
+        .send(area)
+        .expect(403);
+      for (const bad of [
+        { radiusKm: 0 },
+        { radiusKm: 101 },
+        { latitude: 91 },
+        { nameAr: '' },
+      ]) {
+        await asAdmin(api().post('/api/v1/admin/service-areas'))
+          .send({ ...area, ...bad })
+          .expect(400);
+      }
+      const created = await asAdmin(api().post('/api/v1/admin/service-areas'))
+        .send(area)
+        .expect(201);
+      const id = created.body.id as string;
+      try {
+        expect(created.body).toMatchObject({ ...area, isActive: true });
+        await browse().expect(200);
+        const config = await api().get('/api/v1/app-config').expect(200);
+        expect(config.body.browse.areas).toContainEqual(area);
+
+        const listed = await asEditor(
+          api().get('/api/v1/admin/service-areas'),
+        ).expect(200);
+        expect(listed.body).toContainEqual({ id, ...area, isActive: true });
+
+        await asEditor(api().patch(`/api/v1/admin/service-areas/${id}`))
+          .send({ isActive: false })
+          .expect(403);
+        await asAdmin(api().patch(`/api/v1/admin/service-areas/${id}`))
+          .send({ isActive: false })
+          .expect(200);
+        const res = await browse().expect(400);
+        expect(res.body.error).toBe('OutsideServiceArea');
+
+        await asEditor(
+          api().delete(`/api/v1/admin/service-areas/${id}`),
+        ).expect(403);
+      } finally {
+        await asAdmin(api().delete(`/api/v1/admin/service-areas/${id}`)).expect(
+          204,
+        );
+      }
+      await asAdmin(api().delete(`/api/v1/admin/service-areas/${id}`)).expect(
+        404,
+      );
+      await api()
+        .get('/api/v1/admin/service-areas')
         .set('Authorization', `Bearer ${customerToken}`)
         .expect(403);
     });

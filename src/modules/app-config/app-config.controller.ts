@@ -1,43 +1,21 @@
 import { Controller, Get } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator.js';
-import type { Env } from '../../config/env.validation.js';
+import { AppConfigService } from './app-config.service.js';
 import { AppConfigDto } from './dto/app-config.dto.js';
 
 @ApiTags('App config')
 @Public()
 @Controller('app-config')
 export class AppConfigController {
-  constructor(private readonly config: ConfigService<Env, true>) {}
+  constructor(private readonly appConfig: AppConfigService) {}
 
   @Get()
   @ApiOperation({
     summary:
-      'Settings the apps read on startup (minimum versions, how to reach us)',
+      'Settings the apps read on startup (minimum versions, how to reach us, browse radius)',
   })
-  getAppConfig(): AppConfigDto {
-    return {
-      partner: {
-        minVersion: this.config.get('PARTNER_APP_MIN_VERSION', {
-          infer: true,
-        }),
-      },
-      customer: {
-        minVersion: this.config.get('CUSTOMER_APP_MIN_VERSION', {
-          infer: true,
-        }),
-      },
-      admin: {
-        minVersion: this.config.get('ADMIN_APP_MIN_VERSION', { infer: true }),
-      },
-      support: {
-        phone: this.config.get('SUPPORT_PHONE', { infer: true }),
-        whatsapp: this.config.get('SUPPORT_WHATSAPP', { infer: true }),
-        email: this.config.get('SUPPORT_EMAIL', { infer: true }),
-        hoursAr: this.config.get('SUPPORT_HOURS_AR', { infer: true }),
-        hoursEn: this.config.get('SUPPORT_HOURS_EN', { infer: true }),
-      },
-    };
+  getAppConfig(): Promise<AppConfigDto> {
+    return this.appConfig.get();
   }
 }

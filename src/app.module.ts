@@ -15,6 +15,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { LocationsModule } from './modules/locations/locations.module.js';
 import { OffersModule } from './modules/offers/offers.module.js';
 import { ProductsModule } from './modules/products/products.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { StoresModule } from './modules/stores/stores.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -42,6 +43,7 @@ import { UsersModule } from './modules/users/users.module.js';
     CategoriesModule,
     StoresModule,
     LocationsModule,
+    SettingsModule,
     UsersModule,
     ProductsModule,
     OffersModule,

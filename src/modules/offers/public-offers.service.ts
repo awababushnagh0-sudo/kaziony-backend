@@ -15,6 +15,8 @@ import {
   OfferType,
 } from '../../generated/prisma/enums.js';
 import { StorageService } from '../../storage/storage.service.js';
+import { ServiceAreasService } from '../settings/service-areas.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { toCategoryDto } from '../categories/categories.service.js';
 import {
   type BrowseOffersQueryDto,
@@ -26,7 +28,6 @@ import {
 } from './dto/public-offers.dto.js';
 import { discountPercent, OfferState, offerState } from './offer-state.js';
 
-const DEFAULT_RADIUS_KM = 25;
 // Live offers are filtered and sorted in memory. Plenty for ~100 stores;
 // move distance sorting into SQL if the app outgrows this.
 const MAX_LIVE_OFFERS = 1000;
@@ -66,10 +67,29 @@ export class PublicOffersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly settings: SettingsService,
+    private readonly serviceAreas: ServiceAreasService,
   ) {}
 
   async browse(query: BrowseOffersQueryDto): Promise<PublicOfferListDto> {
     const location = toLocation(query.lat, query.lng);
+    // Customers only ever see what's near them. A store's own offers (its
+    // page) list from anywhere.
+    if (!location && !query.storeId) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'LocationRequired',
+        message: 'Send lat and lng to browse offers',
+      });
+    }
+    // The app keeps customers inside our areas; this holds it to that.
+    if (location && !(await this.serviceAreas.covers(location))) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'OutsideServiceArea',
+        message: "Kaziony isn't available here yet",
+      });
+    }
     if (query.radiusKm && !location) {
       throw new BadRequestException('radiusKm needs lat and lng');
     }
@@ -117,7 +137,9 @@ export class PublicOffersService {
       .filter((r) => r.branches.length > 0);
 
     if (location) {
-      const radius = query.radiusKm ?? DEFAULT_RADIUS_KM;
+      const { browseRadiusKm } = await this.settings.get();
+      // The app may ask for less than our setting, never for more.
+      const radius = Math.min(query.radiusKm ?? browseRadiusKm, browseRadiusKm);
       ranked = ranked.filter((r) => r.branches[0].distanceKm! <= radius);
     }
     ranked.sort(comparator(sort));

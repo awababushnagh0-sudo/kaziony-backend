@@ -26,7 +26,7 @@ describe('App (e2e)', () => {
       });
   });
 
-  it('GET /api/v1/app-config returns minimum app versions and support', () => {
+  it('GET /api/v1/app-config returns versions, support and how to browse', () => {
     return request(app.getHttpServer())
       .get('/api/v1/app-config')
       .expect(200)
@@ -40,6 +40,10 @@ describe('App (e2e)', () => {
           hoursAr: expect.any(String),
           hoursEn: expect.any(String),
         });
+        expect(res.body.browse.radiusKm).toBeGreaterThan(0);
+        expect(res.body.browse.areas).toContainEqual(
+          expect.objectContaining({ nameEn: 'Tripoli', radiusKm: 30 }),
+        );
       });
   });
 

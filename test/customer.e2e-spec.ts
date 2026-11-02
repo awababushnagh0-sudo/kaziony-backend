@@ -26,6 +26,7 @@ describe('Customer API (e2e)', () => {
   const storeIds: string[] = [];
   let storeId: string;
   let farStoreId: string;
+  let zawiyaStoreId: string;
   let branchNear: string;
   let branchFar: string;
   let productId: string;
@@ -166,6 +167,23 @@ describe('Customer API (e2e)', () => {
       },
     });
     farStoreId = far.id;
+    // About 45 km west: beyond the default radius, within what an app could
+    // ask for.
+    const zawiya = await prisma.store.create({
+      data: {
+        categoryId,
+        name: `${tag} Zawiya`,
+        branches: {
+          create: {
+            name: 'Z',
+            city: City.TRIPOLI,
+            latitude: 32.757,
+            longitude: 12.727,
+          },
+        },
+      },
+    });
+    zawiyaStoreId = zawiya.id;
     const disabled = await prisma.store.create({
       data: {
         categoryId,
@@ -181,7 +199,7 @@ describe('Customer API (e2e)', () => {
         },
       },
     });
-    storeIds.push(storeId, farStoreId, disabled.id);
+    storeIds.push(storeId, farStoreId, disabled.id, zawiyaStoreId);
 
     productId = (
       await prisma.product.create({
@@ -207,6 +225,7 @@ describe('Customer API (e2e)', () => {
       nearOffer = (await offer({ offerPrice: '6.000' })).id;
       await offer({ offerPrice: '2.000', title: `${tag} big discount` });
       await offer({ storeId: farStoreId });
+      await offer({ storeId: zawiyaStoreId });
       hidden = [
         (await offer({ startsAt: new Date(Date.now() + HOUR) })).id,
         (await offer({ quantity: 0 })).id,
@@ -248,29 +267,54 @@ describe('Customer API (e2e)', () => {
       expect(distances).toEqual([...distances].sort((a, b) => a - b));
     });
 
-    it('includes far stores with a big enough radius', async () => {
+    it('never shows offers beyond our radius, whatever the app asks', async () => {
       const res = await api()
         .get('/api/v1/offers')
-        .query({ ...tripoli, categoryId, radiusKm: 100, storeId: farStoreId })
+        .query({ ...tripoli, radiusKm: 100, storeId: zawiyaStoreId })
         .expect(200);
       expect(res.body.meta.total).toBe(0);
-      const all = await api()
+    });
+
+    it("lists a store's offers from anywhere", async () => {
+      const res = await api()
         .get('/api/v1/offers')
-        .query({ storeId: farStoreId })
+        .query({ storeId: zawiyaStoreId })
         .expect(200);
-      expect(all.body.meta.total).toBe(1);
+      expect(res.body.meta.total).toBe(1);
+    });
+
+    it('needs a location to browse', async () => {
+      const res = await api().get('/api/v1/offers').expect(400);
+      expect(res.body.error).toBe('LocationRequired');
+      await api().get('/api/v1/offers').query({ search: tag }).expect(400);
     });
 
     it('validates location parameters', async () => {
       await api().get('/api/v1/offers').query({ lat: 32.8 }).expect(400);
-      await api().get('/api/v1/offers').query({ sort: 'nearest' }).expect(400);
-      await api().get('/api/v1/offers').query({ radiusKm: 10 }).expect(400);
+      await api()
+        .get('/api/v1/offers')
+        .query({ storeId, sort: 'nearest' })
+        .expect(400);
+      await api()
+        .get('/api/v1/offers')
+        .query({ storeId, radiusKm: 10 })
+        .expect(400);
+    });
+
+    it('refuses to browse from outside our service areas', async () => {
+      // Out in the sea, north of Tripoli.
+      const res = await api()
+        .get('/api/v1/offers')
+        .query({ lat: 34.5, lng: 15 })
+        .expect(400);
+      expect(res.body.error).toBe('OutsideServiceArea');
     });
 
     it('searches and sorts by biggest discount', async () => {
       const res = await api()
         .get('/api/v1/offers')
         .query({
+          ...tripoli,
           search: `${tag} Sweets`,
           sort: 'biggest_discount',
           pageSize: 100,

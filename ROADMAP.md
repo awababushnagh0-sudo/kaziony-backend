@@ -107,6 +107,7 @@ Decisions:
 - **A claim can take several pieces with one code** (`quantity`, default 1), so one customer can buy a whole tray. The limit per customer (`maxPerUser`) counts pieces and is **optional: no limit by default**. A no-show on a big claim holds those pieces only until the claim window ends, and still counts as one strike.
 - Browsing filters and sorts live offers in memory (fine for ~100 stores, logs a warning at 1000 live offers).
 - Ended or sold-out offers still open from a shared link and show their state; removed offers and disabled stores return 404.
+- **Browsing needs a place.** `GET /offers` takes `lat`/`lng` (or a `storeId`), and the radius can't exceed the browse radius, a platform setting (default 25 km) admins edit at `/admin/settings` and apps read from `/app-config`. The point must be inside a **service area** (a center and a radius per city; Tripoli, 30 km, for now): admins manage them at `/admin/service-areas`, apps read them from `/app-config` and draw them on the map where customers who don't share their location set a pin.
 
 ## Phase 6: Notifications
 

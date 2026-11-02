@@ -1,3 +1,5 @@
+import { BrowseAreaDto } from '../../settings/dto/service-area.dto.js';
+
 export class AppVersionDto {
   /**
    * Older versions must update before they can be used.
@@ -35,6 +37,20 @@ export class SupportContactDto {
   hoursEn: string;
 }
 
+export class BrowseConfigDto {
+  /**
+   * Customers see offers from branches this close to them, in km.
+   * @example 25
+   */
+  radiusKm: number;
+
+  /**
+   * Where Kaziony works: customers browse from a point inside one of
+   * these, or `GET /offers` answers 400 `OutsideServiceArea`.
+   */
+  areas: BrowseAreaDto[];
+}
+
 export class AppConfigDto {
   partner: AppVersionDto;
   customer: AppVersionDto;
@@ -42,4 +58,7 @@ export class AppConfigDto {
 
   /** How to reach our team (forgotten passwords, adding a store, help). */
   support: SupportContactDto;
+
+  /** How the customer app browses offers. */
+  browse: BrowseConfigDto;
 }

@@ -43,17 +43,29 @@ export class LocationQueryDto {
 }
 
 export class BrowseOffersQueryDto extends PaginationQueryDto {
+  /**
+   * Where the customer is (or the place they set on the map). Required with
+   * lng, except when listing one store's offers (storeId): 400 with error
+   * "LocationRequired". Must be inside a service area
+   * (`GET /app-config` → `browse.areas`): 400 with error
+   * "OutsideServiceArea".
+   * @example 32.8872
+   */
   @IsOptional()
   @Type(() => Number)
   @IsLatitude()
   lat?: number;
 
+  /** @example 13.1913 */
   @IsOptional()
   @Type(() => Number)
   @IsLongitude()
   lng?: number;
 
-  /** Only offers within this distance (needs lat/lng). Default 25 km. */
+  /**
+   * Only offers within this distance (needs lat/lng). Default and most: the
+   * radius in our settings (`GET /app-config` → `browse.radiusKm`).
+   */
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
