@@ -12,6 +12,7 @@ npm install            # also generates the Prisma client
 npm run db:up          # start Postgres in Docker (port 5433)
 npm run db:migrate     # apply migrations
 npm run db:seed        # categories + a demo store with offers
+npm run db:catalog     # optional: 10 stores and 63 offers with photos, to try the apps
 npm run start:dev
 ```
 
@@ -82,6 +83,8 @@ Photos are uploaded as `multipart/form-data` (max 1 MB, JPEG/PNG/WebP, checked f
 | `npm run db:migrate` | Create and apply a migration after changing `prisma/schema.prisma` |
 | `npm run db:generate` | Regenerate the Prisma client |
 | `npm run db:seed` | Load demo data (safe to run again) |
+| `npm run db:demo` | A day of claims on the demo store (dev only) |
+| `npm run db:catalog` | 10 stores and 63 offers with photos around Tripoli (dev only). Run again to refill quantities and push end times forward |
 | `npm run db:reset` | Drop everything, re-run migrations and seed |
 | `npm run db:studio` | Browse the data in Prisma Studio |
 | `npm run db:deploy` | Apply migrations in production |

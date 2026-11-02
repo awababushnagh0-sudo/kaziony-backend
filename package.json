@@ -28,6 +28,7 @@
     "db:generate": "prisma generate",
     "db:seed": "prisma db seed",
     "db:demo": "tsx scripts/demo-day.ts",
+    "db:catalog": "tsx scripts/demo-catalog.ts",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
     "admin:create": "tsx scripts/create-admin.ts"
