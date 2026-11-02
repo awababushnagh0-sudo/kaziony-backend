@@ -82,7 +82,8 @@ export class ClaimsService {
         },
       });
       if (active) {
-        throw new ConflictException(
+        throw conflict(
+          'AlreadyReserved',
           'You already have an active reservation for this offer',
         );
       }
@@ -98,12 +99,14 @@ export class ClaimsService {
         });
         const left = offer.maxPerUser - (taken._sum.quantity ?? 0);
         if (left <= 0) {
-          throw new ConflictException(
+          throw conflict(
+            'ClaimLimitReached',
             "You've already taken the most this offer allows",
           );
         }
         if (quantity > left) {
-          throw new ConflictException(
+          throw conflict(
+            'OverClaimLimit',
             `You can take ${left} more of this offer`,
           );
         }
@@ -120,7 +123,8 @@ export class ClaimsService {
           },
         });
         if (reservations >= MAX_ACTIVE_RESERVATIONS) {
-          throw new ConflictException(
+          throw conflict(
+            'TooManyReservations',
             `You can hold at most ${MAX_ACTIVE_RESERVATIONS} reservations at a time. Pick one up or cancel one first.`,
           );
         }
@@ -134,9 +138,9 @@ export class ClaimsService {
           const { remainingQuantity } = await tx.offer.findUniqueOrThrow({
             where: { id: offerId },
           });
-          throw new ConflictException(
-            remainingQuantity ? `Only ${remainingQuantity} left` : 'Sold out',
-          );
+          throw remainingQuantity
+            ? conflict('NotEnoughLeft', `Only ${remainingQuantity} left`)
+            : conflict('SoldOut', 'Sold out');
         }
 
         const windowEnd = new Date(
@@ -242,13 +246,13 @@ export class ClaimsService {
     }
     switch (offerState(offer)) {
       case OfferState.SOLD_OUT:
-        return new ConflictException('Sold out');
+        return conflict('SoldOut', 'Sold out');
       case OfferState.SCHEDULED:
-        return new ConflictException("This offer hasn't started yet");
+        return conflict('OfferNotStarted', "This offer hasn't started yet");
       case OfferState.REMOVED:
         return new NotFoundException('Offer not found');
       default:
-        return new ConflictException('This offer is no longer available');
+        return conflict('OfferEnded', 'This offer is no longer available');
     }
   }
 
@@ -299,4 +303,9 @@ async function uniqueCode(tx: Prisma.TransactionClient): Promise<string> {
     if (taken === 0) return code;
   }
   throw new Error('Could not generate a unique claim code');
+}
+
+/** A 409 with a stable `error` code, so the apps can say it in their words. */
+function conflict(error: string, message: string): ConflictException {
+  return new ConflictException({ statusCode: 409, error, message });
 }

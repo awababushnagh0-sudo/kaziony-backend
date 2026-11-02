@@ -394,9 +394,10 @@ describe('Customer API (e2e)', () => {
       expect(after.remainingQuantity).toBe(1);
 
       const again = await claim('alice', o.id, 409);
-      expect(again.body.message).toBe(
-        'You already have an active reservation for this offer',
-      );
+      expect(again.body).toMatchObject({
+        error: 'AlreadyReserved',
+        message: 'You already have an active reservation for this offer',
+      });
 
       const { token } = await customer('alice');
       const detail = await api()
@@ -426,20 +427,30 @@ describe('Customer API (e2e)', () => {
     it('takes several pieces with one code, all of them when there is no limit', async () => {
       const o = await offer({ quantity: 5, maxPerUser: null });
       const detail = await api().get(`/api/v1/offers/${o.id}`).expect(200);
-      expect(detail.body.maxPerUser).toBeNull();
+      expect(detail.body).toMatchObject({
+        maxPerUser: null,
+        totalQuantity: 5,
+        remainingQuantity: 5,
+      });
 
       const first = await claim('bulk1', o.id, 201, { quantity: 3 });
       expect(first.body).toMatchObject({ quantity: 3, totalPrice: '15.000' });
 
       const tooMany = await claim('bulk2', o.id, 409, { quantity: 3 });
-      expect(tooMany.body.message).toBe('Only 2 left');
+      expect(tooMany.body).toMatchObject({
+        error: 'NotEnoughLeft',
+        message: 'Only 2 left',
+      });
 
       await claim('bulk2', o.id, 201, { quantity: 2 });
       const after = await prisma.offer.findUniqueOrThrow({
         where: { id: o.id },
       });
       expect(after.remainingQuantity).toBe(0);
-      expect((await claim('bulk3', o.id, 409)).body.message).toBe('Sold out');
+      expect((await claim('bulk3', o.id, 409)).body).toMatchObject({
+        error: 'SoldOut',
+        message: 'Sold out',
+      });
     });
 
     it('never sells more pieces than there are, even when everyone taps at once', async () => {
@@ -518,28 +529,31 @@ describe('Customer API (e2e)', () => {
         data: { status: ClaimStatus.REDEEMED },
       });
       const third = await claim('bob', o.id, 409);
-      expect(third.body.message).toBe(
-        "You've already taken the most this offer allows",
-      );
+      expect(third.body).toMatchObject({
+        error: 'ClaimLimitReached',
+        message: "You've already taken the most this offer allows",
+      });
     });
 
     it('explains why an offer cannot be claimed', async () => {
       const soldOut = await offer({ quantity: 0 });
-      expect((await claim('carol', soldOut.id, 409)).body.message).toBe(
-        'Sold out',
+      expect((await claim('carol', soldOut.id, 409)).body.error).toBe(
+        'SoldOut',
       );
       const later = await offer({ startsAt: new Date(Date.now() + HOUR) });
-      expect((await claim('carol', later.id, 409)).body.message).toBe(
-        "This offer hasn't started yet",
-      );
+      expect((await claim('carol', later.id, 409)).body).toMatchObject({
+        error: 'OfferNotStarted',
+        message: "This offer hasn't started yet",
+      });
       const paused = await offer();
       await prisma.offer.update({
         where: { id: paused.id },
         data: { status: OfferStatus.PAUSED },
       });
-      expect((await claim('carol', paused.id, 409)).body.message).toBe(
-        'This offer is no longer available',
-      );
+      expect((await claim('carol', paused.id, 409)).body).toMatchObject({
+        error: 'OfferEnded',
+        message: 'This offer is no longer available',
+      });
     });
   });
 
