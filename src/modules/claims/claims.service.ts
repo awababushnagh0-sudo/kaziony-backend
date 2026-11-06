@@ -33,6 +33,7 @@ const customerClaimInclude = {
       branches: { include: { branch: true } },
     },
   },
+  rating: { select: { stars: true } },
 } satisfies Prisma.ClaimInclude;
 
 type CustomerClaim = Prisma.ClaimGetPayload<{
@@ -232,6 +233,45 @@ export class ClaimsService {
     return this.get(userId, claimId);
   }
 
+  /**
+   * Stars for the store, once per pickup: only a customer who picked up
+   * knows how it went. The store's running total moves with it, so lists
+   * show its average without adding ratings up.
+   */
+  async rate(
+    userId: string,
+    claimId: string,
+    stars: number,
+  ): Promise<CustomerClaimDto> {
+    await this.prisma.$transaction(async (tx) => {
+      const claim = await tx.claim.findFirst({
+        where: { id: claimId, userId },
+        include: {
+          offer: { select: { storeId: true } },
+          rating: { select: { id: true } },
+        },
+      });
+      if (!claim) throw new NotFoundException('Claim not found');
+      if (claim.status !== ClaimStatus.REDEEMED) {
+        throw conflict('NotPickedUp', 'Rate the store once you pick up');
+      }
+      if (claim.rating) throw conflict('AlreadyRated', 'Already rated');
+      // A double tap racing past the check above hits the unique claimId
+      // instead, which the error filter turns into a 409.
+      await tx.storeRating.create({
+        data: { claimId, userId, storeId: claim.offer.storeId, stars },
+      });
+      await tx.store.update({
+        where: { id: claim.offer.storeId },
+        data: {
+          ratingCount: { increment: 1 },
+          ratingTotal: { increment: stars },
+        },
+      });
+    });
+    return this.get(userId, claimId);
+  }
+
   /** Explains why an offer can't be claimed. */
   private async unavailableError(
     tx: Prisma.TransactionClient,
@@ -291,6 +331,8 @@ export class ClaimsService {
         .filter((branch) => branch.isActive)
         .map((branch) => toBranchDto(branch, undefined)),
       canCancel: isActive,
+      myRating: claim.rating?.stars ?? null,
+      canRate: claim.status === ClaimStatus.REDEEMED && claim.rating === null,
     };
   }
 }

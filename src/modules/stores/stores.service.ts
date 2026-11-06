@@ -28,6 +28,7 @@ import type {
   StoreMemberDto,
 } from './dto/store-responses.dto.js';
 import { MerchantAccountsService } from './merchant-accounts.service.js';
+import { ratingAverage } from '../../common/utils/rating.js';
 
 const storeDetailInclude = {
   category: true,
@@ -293,6 +294,9 @@ export class StoresService {
       email: store.email,
       facebookUrl: store.facebookUrl,
       instagramUrl: store.instagramUrl,
+      pickupInstructions: store.pickupInstructions,
+      ratingAverage: ratingAverage(store.ratingTotal, store.ratingCount),
+      ratingCount: store.ratingCount,
       isActive: store.isActive,
       createdAt: store.createdAt,
       category: toCategoryDto(store.category),

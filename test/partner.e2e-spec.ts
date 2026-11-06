@@ -214,11 +214,18 @@ describe('Partner API (e2e)', () => {
 
     it('lets owners edit contact details but not the name', async () => {
       const res = await as('owner', api().patch(url()))
-        .send({ description: 'Best sweets', phone: '0911111111' })
+        .send({
+          description: 'Best sweets',
+          phone: '0911111111',
+          pickupInstructions: 'Ask at the counter',
+        })
         .expect(200);
       expect(res.body).toMatchObject({
         description: 'Best sweets',
         phone: '+218911111111',
+        pickupInstructions: 'Ask at the counter',
+        ratingAverage: null,
+        ratingCount: 0,
       });
 
       await as('owner', api().patch(url()))

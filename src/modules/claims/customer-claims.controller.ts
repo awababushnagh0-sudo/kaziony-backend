@@ -21,6 +21,7 @@ import {
   CustomerClaimDto,
   CustomerClaimListDto,
   ListMyClaimsQueryDto,
+  RateClaimDto,
 } from './dto/customer-claims.dto.js';
 
 @ApiTags('Claims')
@@ -79,5 +80,21 @@ export class CustomerClaimsController {
     @Param('claimId', ParseUUIDPipe) claimId: string,
   ): Promise<CustomerClaimDto> {
     return this.claims.cancel(user.id, claimId);
+  }
+
+  @Post('me/claims/:claimId/rating')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Rate the store after picking up',
+    description:
+      'Once per pickup. 409 with error "NotPickedUp" before it was picked ' +
+      'up, "AlreadyRated" the second time.',
+  })
+  rate(
+    @CurrentUser() user: AuthUser,
+    @Param('claimId', ParseUUIDPipe) claimId: string,
+    @Body() dto: RateClaimDto,
+  ): Promise<CustomerClaimDto> {
+    return this.claims.rate(user.id, claimId, dto.stars);
   }
 }

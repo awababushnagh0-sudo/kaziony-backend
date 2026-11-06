@@ -99,6 +99,9 @@ export class OfferStoreSummaryDto {
   name: string;
   logoUrl: string | null;
   category: CategoryDto;
+  /** Average stars from customers' pickups, one decimal; null before the first. */
+  ratingAverage: number | null;
+  ratingCount: number;
 }
 
 export class PublicBranchDto {
@@ -159,4 +162,6 @@ export class PublicOfferDetailDto extends PublicOfferDto {
   branches: PublicBranchDto[];
   /** The logged-in customer's active reservation for this offer, if any. */
   myActiveClaimId: string | null;
+  /** The store's: where to go in the shop, what to bring. */
+  pickupInstructions: string | null;
 }

@@ -78,6 +78,48 @@ const LAST_PIECE_EVERY = 7;
 /** Between one offer's posting and the next, for "newest". */
 const POSTED_APART = 37 * MINUTE;
 
+/** What a product is, by the kind of store, taken in turn. */
+const DESCRIPTIONS: Record<StoreSpec['category'], string[]> = {
+  bakery: [
+    'من خبز اليوم، يُخبز صباحًا ويُباع قبل الإغلاق بسعر أقل. طازج ويصلح للتجميد.',
+    'ما تبقى من إنتاج اليوم، بنفس الجودة. سخّنه في الفرن دقائق ليرجع مقرمشًا.',
+    'مخبوز في فرننا اليوم. الكمية حسب ما تبقى، فاحجز قبل ما يخلص.',
+  ],
+  sweet: [
+    'من إنتاج اليوم، تُحفظ في الثلاجة وتُؤكل خلال يومين.',
+    'حلويات اليوم بنصف ما تستاهل: نفس الطعم، فقط لأننا نُحضّر طازجًا كل صباح.',
+    'محضّرة اليوم في محلنا. قد تختلف الزينة حسب ما تبقى.',
+  ],
+  cafe: [
+    'يُحضّر عند الاستلام. أخبر الموظف إن كنت تريده بدون سكر.',
+    'من قائمة اليوم، بسعر خاص في آخر ساعات العمل.',
+    'طازج من مطبخنا. يُقدّم للأخذ فقط.',
+  ],
+};
+
+/**
+ * Where to go and what to bring, by store in turn; null leaves the app's
+ * own words.
+ */
+const PICKUP_INSTRUCTIONS = [
+  'أظهر رمز الاستلام للكاشير عند المدخل وادفع نقدًا. يُفضّل إحضار كيس.',
+  null,
+  'توجّه إلى الكاونتر الخلفي وأظهر الرمز لأي موظف. الاستلام للأخذ فقط.',
+];
+
+/**
+ * Stars as if customers had rated their pickups, [count, total] by store
+ * in turn: some well rated, one not rated yet. The real ones come with
+ * StoreRating rows; the demo only needs the store's totals.
+ */
+const RATINGS: [count: number, total: number][] = [
+  [37, 170],
+  [12, 51],
+  [0, 0],
+  [54, 243],
+  [8, 31],
+];
+
 interface StoreSpec {
   name: string;
   category: 'bakery' | 'sweet' | 'cafe';
@@ -367,6 +409,9 @@ async function main() {
       categoryId,
       name: spec.name,
       description: spec.description,
+      pickupInstructions: cycle(PICKUP_INSTRUCTIONS, s),
+      ratingCount: cycle(RATINGS, s)[0],
+      ratingTotal: cycle(RATINGS, s)[1],
       logoUrl: photo('thumbs', spec.logo),
       coverUrl: photo('covers', spec.cover),
       isActive: true,
@@ -402,6 +447,7 @@ async function main() {
       const productId = fixedId('product', i + 1);
       const product = {
         title,
+        description: cycle(DESCRIPTIONS[spec.category], i),
         regularPrice,
         imagePath: photo('products', image),
         thumbPath: photo('thumbs', image),

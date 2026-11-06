@@ -41,6 +41,11 @@ export class StoreDetailDto {
   email: string | null;
   facebookUrl: string | null;
   instagramUrl: string | null;
+  /** Shown to customers on every offer's page. */
+  pickupInstructions: string | null;
+  /** Average stars from customers' pickups, one decimal; null before the first. */
+  ratingAverage: number | null;
+  ratingCount: number;
   isActive: boolean;
   createdAt: Date;
   category: CategoryDto;

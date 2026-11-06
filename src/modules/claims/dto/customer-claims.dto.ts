@@ -63,6 +63,18 @@ export class CustomerClaimDto {
   /** Where it can be picked up. */
   branches: PublicBranchDto[];
   canCancel: boolean;
+  /** The stars I gave the store for this pickup; null until rated. */
+  myRating: number | null;
+  /** Picked up and not rated yet. */
+  canRate: boolean;
+}
+
+export class RateClaimDto {
+  /** @example 5 */
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  stars: number;
 }
 
 export class CustomerClaimListDto {

@@ -106,6 +106,17 @@ export class CreateStoreDto {
   @MaxLength(1000)
   description?: string;
 
+  /**
+   * Shown to customers on every offer's page: where to go in the shop,
+   * what to bring.
+   * @example "اطلب من الكاشير وأظهر رمز الاستلام."
+   */
+  @IsOptional()
+  @EmptyAsNull()
+  @IsString()
+  @MaxLength(500)
+  pickupInstructions?: string;
+
   @IsOptional()
   @EmptyAsNull()
   @IsLibyanPhone()
@@ -180,6 +191,7 @@ export class ListStoresQueryDto extends PaginationQueryDto {
 /** What a store owner can change themselves. Name and category are set by admins. */
 export class UpdateStoreProfileDto extends PickType(UpdateStoreDto, [
   'description',
+  'pickupInstructions',
   'phone',
   'email',
   'facebookUrl',

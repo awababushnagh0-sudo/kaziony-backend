@@ -98,6 +98,11 @@ Decisions:
 - [x] Claim an offer: per-customer lock so double taps can't beat the limits; atomic quantity update so offers never oversell; max 3 active reservations; `maxPerUser`; unique 8-character code
 - [x] My claims (all or active), claim details with the QR code, cancel (gives the piece back, no strike)
 - [x] Follow / unfollow stores, list followed stores with live offer counts
+- [x] Stores around a place, closest first, searchable by name (home rows, search)
+- [x] Store ratings: 1 to 5 stars once per pickup, the average on offers and stores
+      (running totals on the store, so lists don't add ratings up)
+- [x] Pickup instructions per store, shown on its offers; an offer's description falls
+      back to its product's
 - [x] Edit my name and contact phone (`PATCH /auth/me`)
 - [x] Expiry job every minute: expire claims (piece back, no-show strike; every 3rd strike blocks claiming for 7 days), end finished offers
 - [x] e2e tests, including many customers grabbing the last pieces at once and double taps

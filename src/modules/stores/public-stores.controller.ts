@@ -22,13 +22,29 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 import { UserRole } from '../../generated/prisma/enums.js';
 import { LocationQueryDto } from '../offers/dto/public-offers.dto.js';
 import { toLocation } from '../offers/public-offers.service.js';
-import { FollowedStoreDto, PublicStoreDto } from './dto/public-stores.dto.js';
+import {
+  FollowedStoreDto,
+  NearbyStoresQueryDto,
+  PublicStoreDto,
+  PublicStoreListDto,
+} from './dto/public-stores.dto.js';
 import { PublicStoresService } from './public-stores.service.js';
 
 @ApiTags('Stores')
 @Controller()
 export class PublicStoresController {
   constructor(private readonly stores: PublicStoresService) {}
+
+  @Public()
+  @Get('stores')
+  @ApiOperation({
+    summary: 'Stores around a place, closest first',
+    description:
+      'Within the browse radius (`GET /app-config` → `browse.radiusKm`), with or without live offers.',
+  })
+  nearby(@Query() query: NearbyStoresQueryDto): Promise<PublicStoreListDto> {
+    return this.stores.nearby(query);
+  }
 
   @Public()
   @Get('stores/:storeId')

@@ -88,6 +88,7 @@ model User {
   claims         Claim[]        @relation("ClaimCustomer")
   redeemedClaims Claim[]        @relation("ClaimRedeemer")
   follows        Follow[]
+  storeRatings   StoreRating[]
   deviceTokens   DeviceToken[]
   createdStores  Store[]        @relation("StoreCreator")
   createdOffers  Offer[]        @relation("OfferCreator")
@@ -193,21 +194,28 @@ model Category {
 }
 
 model Store {
-  id           String   @id @default(uuid(7)) @db.Uuid
-  categoryId   String   @map("category_id") @db.Uuid
-  name         String
-  description  String?
-  logoUrl      String?  @map("logo_url")
-  coverUrl     String?  @map("cover_url")
-  phone        String?
-  email        String?
-  facebookUrl  String?  @map("facebook_url")
-  instagramUrl String?  @map("instagram_url")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdById  String?  @map("created_by_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  categoryId         String   @map("category_id") @db.Uuid
+  name               String
+  description        String?
+  logoUrl            String?  @map("logo_url")
+  coverUrl           String?  @map("cover_url")
+  phone              String?
+  email              String?
+  facebookUrl        String?  @map("facebook_url")
+  instagramUrl       String?  @map("instagram_url")
+  // Shown on every offer's page: where to go in the shop, what to bring.
+  pickupInstructions String?  @map("pickup_instructions")
+  // Kept up to date with each rating, so lists show the average without
+  // adding them up.
+  ratingCount        Int      @default(0) @map("rating_count")
+  ratingTotal        Int      @default(0) @map("rating_total")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdById        String?  @map("created_by_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
+  ratings   StoreRating[]
   category  Category      @relation(fields: [categoryId], references: [id])
   createdBy User?         @relation("StoreCreator", fields: [createdById], references: [id], onDelete: SetNull)
   branches  Branch[]
@@ -358,15 +366,36 @@ model Claim {
   createdAt        DateTime    @default(now()) @map("created_at")
   updatedAt        DateTime    @updatedAt @map("updated_at")
 
-  offer          Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  user           User    @relation("ClaimCustomer", fields: [userId], references: [id], onDelete: Cascade)
-  redeemedBy     User?   @relation("ClaimRedeemer", fields: [redeemedById], references: [id], onDelete: SetNull)
-  redeemedBranch Branch? @relation(fields: [redeemedBranchId], references: [id], onDelete: SetNull)
+  offer          Offer        @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  user           User         @relation("ClaimCustomer", fields: [userId], references: [id], onDelete: Cascade)
+  redeemedBy     User?        @relation("ClaimRedeemer", fields: [redeemedById], references: [id], onDelete: SetNull)
+  redeemedBranch Branch?      @relation(fields: [redeemedBranchId], references: [id], onDelete: SetNull)
+  rating         StoreRating?
 
   @@index([userId, status])
   @@index([offerId, status])
   @@index([status, expiresAt])
   @@map("claims")
+}
+
+// A customer's stars for a store, once per pickup.
+model StoreRating {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  claimId   String   @unique @map("claim_id") @db.Uuid
+  storeId   String   @map("store_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  // 1 to 5.
+  stars     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([userId])
+  @@map("store_ratings")
 }
 
 model Follow {

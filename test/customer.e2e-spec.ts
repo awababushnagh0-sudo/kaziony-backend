@@ -353,6 +353,53 @@ describe('Customer API (e2e)', () => {
       await api().get(`/api/v1/stores/${storeIds[2]}`).expect(404);
     });
 
+    it('lists stores near me, closest first, within our radius', async () => {
+      const res = await api()
+        .get('/api/v1/stores')
+        .query({ ...tripoli, categoryId, pageSize: 100 })
+        .expect(200);
+      const ids = res.body.items.map((s: { id: string }) => s.id);
+      expect(ids).toEqual([storeId]);
+      expect(res.body.items[0]).toMatchObject({
+        nearestBranch: { id: branchNear },
+        liveOfferCount: 2,
+      });
+      expect(res.body.meta.total).toBe(1);
+
+      const searched = await api()
+        .get('/api/v1/stores')
+        .query({ ...tripoli, search: `${tag} sweets` })
+        .expect(200);
+      expect(searched.body.items.map((s: { id: string }) => s.id)).toEqual([
+        storeId,
+      ]);
+    });
+
+    it('needs a place inside our areas to list stores', async () => {
+      await api().get('/api/v1/stores').expect(400);
+      const res = await api()
+        .get('/api/v1/stores')
+        .query({ lat: 34.5, lng: 15 })
+        .expect(400);
+      expect(res.body.error).toBe('OutsideServiceArea');
+    });
+
+    it("shows the store's pickup instructions and the product's description", async () => {
+      await prisma.store.update({
+        where: { id: storeId },
+        data: { pickupInstructions: 'Ask at the counter' },
+      });
+      await prisma.product.update({
+        where: { id: productId },
+        data: { description: 'Fresh today' },
+      });
+      const res = await api().get(`/api/v1/offers/${nearOffer}`).expect(200);
+      expect(res.body).toMatchObject({
+        pickupInstructions: 'Ask at the counter',
+        description: 'Fresh today',
+      });
+    });
+
     it('shows the store page with live offers', async () => {
       const res = await api()
         .get(`/api/v1/stores/${storeId}`)
@@ -589,6 +636,40 @@ describe('Customer API (e2e)', () => {
         .post(`/api/v1/me/claims/${myClaim.id}/cancel`)
         .set('Authorization', `Bearer ${token}`)
         .expect(409);
+    });
+
+    it('rates the store once, after picking up', async () => {
+      const o = await offer({ maxPerUser: null });
+      const myClaim = (await claim('gina', o.id, 201)).body;
+      const { token } = await customer('gina');
+      expect(myClaim).toMatchObject({ myRating: null, canRate: false });
+      const rate = (id: string, stars: number, as = token) =>
+        api()
+          .post(`/api/v1/me/claims/${id}/rating`)
+          .set('Authorization', `Bearer ${as}`)
+          .send({ stars });
+
+      const early = await rate(myClaim.id, 5).expect(409);
+      expect(early.body.error).toBe('NotPickedUp');
+
+      await prisma.claim.update({
+        where: { id: myClaim.id },
+        data: { status: ClaimStatus.REDEEMED, redeemedAt: new Date() },
+      });
+      await rate(myClaim.id, 6).expect(400);
+      await rate(myClaim.id, 4, (await customer('henry')).token).expect(404);
+      const rated = await rate(myClaim.id, 4).expect(200);
+      expect(rated.body).toMatchObject({ myRating: 4, canRate: false });
+      const again = await rate(myClaim.id, 5).expect(409);
+      expect(again.body.error).toBe('AlreadyRated');
+
+      const page = await api().get(`/api/v1/stores/${storeId}`).expect(200);
+      expect(page.body).toMatchObject({ ratingAverage: 4, ratingCount: 1 });
+      const detail = await api().get(`/api/v1/offers/${o.id}`).expect(200);
+      expect(detail.body.store).toMatchObject({
+        ratingAverage: 4,
+        ratingCount: 1,
+      });
     });
 
     it("hides other customers' claims", async () => {

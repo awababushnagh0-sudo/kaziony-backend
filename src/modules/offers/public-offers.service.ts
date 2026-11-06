@@ -7,6 +7,7 @@ import {
 import { pageMeta } from '../../common/dto/pagination.dto.js';
 import { distanceKm, type LatLng, roundKm } from '../../common/utils/geo.js';
 import { formatPrice } from '../../common/utils/money.js';
+import { ratingAverage } from '../../common/utils/rating.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import {
@@ -34,7 +35,7 @@ const MAX_LIVE_OFFERS = 1000;
 
 const publicOfferInclude = {
   store: { include: { category: true } },
-  product: { select: { imagePath: true, thumbPath: true } },
+  product: { select: { imagePath: true, thumbPath: true, description: true } },
   branches: { include: { branch: true } },
 } satisfies Prisma.OfferInclude;
 
@@ -82,14 +83,9 @@ export class PublicOffersService {
         message: 'Send lat and lng to browse offers',
       });
     }
-    // The app keeps customers inside our areas; this holds it to that.
-    if (location && !(await this.serviceAreas.covers(location))) {
-      throw new BadRequestException({
-        statusCode: 400,
-        error: 'OutsideServiceArea',
-        message: "Kaziony isn't available here yet",
-      });
-    }
+    const radius = location
+      ? await this.radiusAround(location, query.radiusKm)
+      : undefined;
     if (query.radiusKm && !location) {
       throw new BadRequestException('radiusKm needs lat and lng');
     }
@@ -136,10 +132,7 @@ export class PublicOffersService {
       .map((offer) => this.rank(offer, location))
       .filter((r) => r.branches.length > 0);
 
-    if (location) {
-      const { browseRadiusKm } = await this.settings.get();
-      // The app may ask for less than our setting, never for more.
-      const radius = Math.min(query.radiusKm ?? browseRadiusKm, browseRadiusKm);
+    if (radius !== undefined) {
       ranked = ranked.filter((r) => r.branches[0].distanceKm! <= radius);
     }
     ranked.sort(comparator(sort));
@@ -151,6 +144,24 @@ export class PublicOffersService {
         .map((r) => this.toDto(r)),
       meta: pageMeta(query, ranked.length),
     };
+  }
+
+  /**
+   * How far around [location] customers see offers and stores: what the
+   * app [asked] for, never more than our setting. Refuses places outside
+   * our service areas: the app keeps customers inside them, this holds it
+   * to that.
+   */
+  async radiusAround(location: LatLng, asked?: number): Promise<number> {
+    if (!(await this.serviceAreas.covers(location))) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'OutsideServiceArea',
+        message: "Kaziony isn't available here yet",
+      });
+    }
+    const { browseRadiusKm } = await this.settings.get();
+    return Math.min(asked ?? browseRadiusKm, browseRadiusKm);
   }
 
   /**
@@ -208,6 +219,7 @@ export class PublicOffersService {
       ...this.toDto(ranked),
       branches: ranked.branches,
       myActiveClaimId: myClaim?.id ?? null,
+      pickupInstructions: offer.store.pickupInstructions,
     };
   }
 
@@ -243,7 +255,8 @@ export class PublicOffersService {
     return {
       id: offer.id,
       title: offer.title,
-      description: offer.description,
+      // The offer's own words, else the product's.
+      description: offer.description ?? offer.product.description,
       imageUrl: this.storage.url(offer.product.imagePath),
       thumbUrl: this.storage.url(offer.product.thumbPath),
       originalPrice: formatPrice(offer.originalPrice),
@@ -264,6 +277,11 @@ export class PublicOffersService {
         name: offer.store.name,
         logoUrl: this.storage.url(offer.store.logoUrl),
         category: toCategoryDto(offer.store.category),
+        ratingAverage: ratingAverage(
+          offer.store.ratingTotal,
+          offer.store.ratingCount,
+        ),
+        ratingCount: offer.store.ratingCount,
       },
       nearestBranch: branches[0],
       branchCount: branches.length,
