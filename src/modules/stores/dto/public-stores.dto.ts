@@ -66,7 +66,6 @@ export class PublicStoreListDto {
 export class PublicStoreDto {
   id: string;
   name: string;
-  description: string | null;
   logoUrl: string | null;
   coverUrl: string | null;
   phone: string | null;

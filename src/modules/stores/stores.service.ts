@@ -287,7 +287,6 @@ export class StoresService {
     return {
       id: store.id,
       name: store.name,
-      description: store.description,
       logoUrl: this.storage.url(store.logoUrl),
       coverUrl: this.storage.url(store.coverUrl),
       phone: store.phone,

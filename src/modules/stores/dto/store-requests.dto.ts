@@ -100,12 +100,6 @@ export class CreateStoreDto {
   @MaxLength(100)
   name: string;
 
-  @IsOptional()
-  @EmptyAsNull()
-  @IsString()
-  @MaxLength(1000)
-  description?: string;
-
   /**
    * Shown to customers on every offer's page: where to go in the shop,
    * what to bring.
@@ -190,7 +184,6 @@ export class ListStoresQueryDto extends PaginationQueryDto {
 
 /** What a store owner can change themselves. Name and category are set by admins. */
 export class UpdateStoreProfileDto extends PickType(UpdateStoreDto, [
-  'description',
   'pickupInstructions',
   'phone',
   'email',

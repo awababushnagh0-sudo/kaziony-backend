@@ -197,7 +197,6 @@ model Store {
   id                 String   @id @default(uuid(7)) @db.Uuid
   categoryId         String   @map("category_id") @db.Uuid
   name               String
-  description        String?
   logoUrl            String?  @map("logo_url")
   coverUrl           String?  @map("cover_url")
   phone              String?

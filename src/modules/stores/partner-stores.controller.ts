@@ -59,7 +59,9 @@ export class PartnerStoresController {
 
   @Patch()
   @StoreRoles(StoreMemberRole.OWNER)
-  @ApiOperation({ summary: 'Edit description and contact details (owner)' })
+  @ApiOperation({
+    summary: 'Edit pickup instructions and contact details (owner)',
+  })
   updateProfile(
     @CurrentStore() store: StoreAccess,
     @Body() dto: UpdateStoreProfileDto,

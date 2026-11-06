@@ -425,14 +425,12 @@ describe('Admin API (e2e)', () => {
         api().patch(`/api/v1/admin/stores/${storeId}`),
       )
         .send({
-          description: 'New description',
           phone: '0921234567',
           email: 'shop@example.ly',
           instagramUrl: 'https://instagram.com/shop',
         })
         .expect(200);
       expect(edited.body).toMatchObject({
-        description: 'New description',
         phone: '+218921234567',
         email: 'shop@example.ly',
         instagramUrl: 'https://instagram.com/shop',
@@ -441,9 +439,8 @@ describe('Admin API (e2e)', () => {
       const cleared = await asAdmin(
         api().patch(`/api/v1/admin/stores/${storeId}`),
       )
-        .send({ description: '', phone: '', email: '', instagramUrl: '' })
+        .send({ phone: '', email: '', instagramUrl: '' })
         .expect(200);
-      expect(cleared.body.description).toBeNull();
       expect(cleared.body.phone).toBeNull();
       expect(cleared.body.email).toBeNull();
       expect(cleared.body.instagramUrl).toBeNull();
@@ -689,7 +686,7 @@ describe('Admin API (e2e)', () => {
       await asEditor(api().get('/api/v1/admin/stores')).expect(200);
       await asEditor(api().get('/api/v1/admin/stats')).expect(200);
       await asEditor(api().patch(`/api/v1/admin/stores/${storeId}`))
-        .send({ description: 'Edited by an editor' })
+        .send({ phone: '0921234568' })
         .expect(200);
       await asEditor(api().delete(`/api/v1/admin/stores/${storeId}`)).expect(
         403,

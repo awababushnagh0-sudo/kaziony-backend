@@ -34,7 +34,6 @@ export class StoreMemberDto {
 export class StoreDetailDto {
   id: string;
   name: string;
-  description: string | null;
   logoUrl: string | null;
   coverUrl: string | null;
   phone: string | null;

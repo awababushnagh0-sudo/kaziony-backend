@@ -75,7 +75,6 @@ async function main() {
   const store = {
     categoryId: sweets.id,
     name: 'حلويات تجريبية',
-    description: 'Demo store for development',
   };
   await prisma.store.upsert({
     where: { id: DEMO.storeId },

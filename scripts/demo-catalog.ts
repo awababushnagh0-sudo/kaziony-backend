@@ -123,7 +123,6 @@ const RATINGS: [count: number, total: number][] = [
 interface StoreSpec {
   name: string;
   category: 'bakery' | 'sweet' | 'cafe';
-  description: string;
   cover: string;
   logo: string;
   branches: { name: string; area: string; latitude: number; longitude: number }[];
@@ -135,7 +134,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'مخبز السرايا',
     category: 'bakery',
-    description: 'خبز وكرواسون يُخبز كل صباح، وما يتبقى آخر اليوم بسعر أقل.',
     cover: 'bakery-shelves',
     logo: 'croissants',
     branches: [
@@ -159,7 +157,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'فرن الحارة',
     category: 'bakery',
-    description: 'فرن الحي منذ ١٩٩٨.',
     cover: 'dough',
     logo: 'sourdough',
     branches: [
@@ -181,7 +178,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'مخبز الأصيل',
     category: 'bakery',
-    description: 'مخبوزات بالحبوب الكاملة.',
     cover: 'bread-basket',
     logo: 'rolls',
     branches: [
@@ -199,7 +195,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'حلويات الزهراء',
     category: 'sweet',
-    description: 'كيك وحلويات بالطلب، وقطع اليوم بنصف السعر.',
     cover: 'pink-cupcakes',
     logo: 'raspberry-cake',
     branches: [
@@ -225,7 +220,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'شوكولاتة نوار',
     category: 'sweet',
-    description: 'شوكولاتة مصنوعة يدويًا.',
     cover: 'chocolates',
     logo: 'chocolates',
     branches: [
@@ -248,7 +242,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'كيك آند مور',
     category: 'sweet',
-    description: 'كب كيك، دونات وكوكيز.',
     cover: 'chocolate-cupcakes',
     logo: 'mint-cupcakes',
     branches: [
@@ -273,7 +266,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'حلويات الفرناج',
     category: 'sweet',
-    description: 'حلويات شرقية وغربية.',
     cover: 'chocolate-cake',
     logo: 'donuts',
     branches: [
@@ -290,7 +282,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'مقهى الميدان',
     category: 'cafe',
-    description: 'قهوة وفطور على الميدان.',
     cover: 'street-cafe',
     logo: 'latte-art',
     branches: [
@@ -313,7 +304,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'كافيه ركن القهوة',
     category: 'cafe',
-    description: 'قهوة مختصة وأكل خفيف.',
     cover: 'coffee-bar',
     logo: 'black-coffee',
     branches: [
@@ -342,7 +332,6 @@ const STORES: StoreSpec[] = [
   {
     name: 'مقهى الشط',
     category: 'cafe',
-    description: 'على البحر، من الفطور إلى العشاء.',
     cover: 'cafe-hall',
     logo: 'pizza',
     branches: [
@@ -408,7 +397,6 @@ async function main() {
     const store = {
       categoryId,
       name: spec.name,
-      description: spec.description,
       pickupInstructions: cycle(PICKUP_INSTRUCTIONS, s),
       ratingCount: cycle(RATINGS, s)[0],
       ratingTotal: cycle(RATINGS, s)[1],
