@@ -164,6 +164,8 @@ export class PublicStoresService {
       name: store.name,
       logoUrl: this.storage.url(store.logoUrl),
       category: toCategoryDto(store.category),
+      ratingAverage: ratingAverage(store.ratingTotal, store.ratingCount),
+      ratingCount: store.ratingCount,
       liveOfferCount: store._count.offers,
       followedAt: createdAt,
     }));

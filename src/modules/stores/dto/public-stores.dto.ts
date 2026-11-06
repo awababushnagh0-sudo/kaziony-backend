@@ -93,6 +93,9 @@ export class FollowedStoreDto {
   name: string;
   logoUrl: string | null;
   category: CategoryDto;
+  /** Average stars from customers' pickups, one decimal; null before the first. */
+  ratingAverage: number | null;
+  ratingCount: number;
   liveOfferCount: number;
   followedAt: Date;
 }

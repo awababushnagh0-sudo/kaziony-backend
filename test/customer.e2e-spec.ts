@@ -774,6 +774,9 @@ describe('Customer API (e2e)', () => {
       expect(follows.body).toEqual([
         expect.objectContaining({
           id: storeId,
+          // The same rating as on the store's page.
+          ratingAverage: page.body.ratingAverage,
+          ratingCount: page.body.ratingCount,
           liveOfferCount: expect.any(Number),
         }),
       ]);
